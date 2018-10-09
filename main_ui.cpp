@@ -20,6 +20,7 @@ static void colorize(float minval,float maxval, const cv::Mat& in_, const cv::Ma
     for (int r=0;r<res.rows;r++) {
     for (int c=0;c<res.cols;c++) {
         float val = in_.at<float>(r,c);
+        val = (val - minval) * palette_scale;
         cv::Vec4f rgba = getColorSubpix(palette_,cv::Point2f(val,0.0));
         res.at<cv::Vec4b>(r,c) = rgba*255.0;
     }
