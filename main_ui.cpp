@@ -1,9 +1,9 @@
 #include "amg88xx-i2c.h"
 
 
-#include <opencv2/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-#include <opencv2/imgproc.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 cv::Vec4b getColorSubpix(const cv::Mat& img,cv::Point2f val)
 {
