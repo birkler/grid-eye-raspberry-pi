@@ -34,12 +34,12 @@ int main(int argc, char* argv[]) {
     cv::Vec4f palette_jet_colors[] = {
         cv::Vec4f(0.6,0.0,0.0,1.0),
         cv::Vec4f(1.0,0.0,0.0,1.0),
-        cv::Vec4f(1.0,1.0,0.0,1.0),
-        cv::Vec4f(0.0,1.0,0.0,1.0),
-        cv::Vec4f(0.0,1.0,1.0,1.0),
-        cv::Vec4f(0.0,0.0,1.0,1.0),
-        //cv::Vec4f(1.0,0.5,0.5,1.0),
-        cv::Vec4f(1.0,1.0,1.0,1.0)
+        cv::Vec4f(0.7,0.7,0.0,1.0),
+        cv::Vec4f(0.0,0.9,0.0,1.0),
+        cv::Vec4f(0.0,0.7,0.7,1.0),
+        cv::Vec4f(0.0,0.0,0.9,1.0),
+        //cv::Vec4f(.8,0.3,0.3,1.0),
+        cv::Vec4f(.7,0.7,0.7,1.0)
     };
 
     cv::Mat palette_jet(1,sizeof(palette_jet_colors) / sizeof(palette_jet_colors[0]),CV_32FC4,palette_jet_colors);
