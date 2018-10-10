@@ -101,14 +101,8 @@ class Adafruit_AMG88xx {
 	public:
 		using byte = uint8_t;
 		//constructors
-		Adafruit_AMG88xx() : filehnd(-1), dev_filename("/dev/i2c-1") {
-    		filehnd = open(dev_filename,O_RDWR);
-			if (filehnd < 0) throw std::ios_base::failure("Cannot open /dev/i2c-x");
-    	}
-		~Adafruit_AMG88xx() {
-			if (filehnd >=0) close(filehnd);
-			filehnd = 0;
-		}
+		Adafruit_AMG88xx();
+		~Adafruit_AMG88xx();
 		
 		bool init(uint8_t addr = AMG88xx_ADDRESS);
 		
@@ -361,6 +355,15 @@ class Adafruit_AMG88xx {
 
 #define AMG_I2C_CHUNKSIZE 32
 
+
+Adafruit_AMG88xx::Adafruit_AMG88xx() : filehnd(-1), dev_filename("/dev/i2c-1") {
+}
+Adafruit_AMG88xx::~Adafruit_AMG88xx() {
+	if (filehnd >=0) close(filehnd);
+	filehnd = 0;
+}
+		
+
 /**************************************************************************/
 /*! 
     @brief  Setups the I2C interface and hardware
@@ -371,6 +374,12 @@ class Adafruit_AMG88xx {
 bool Adafruit_AMG88xx::init(uint8_t addr)
 {
 	_i2caddr = addr;
+
+	if (filehnd < 0) {
+		filehnd = open(dev_filename,O_RDWR);
+		if (filehnd < 0) throw std::ios_base::failure("Cannot open /dev/i2c-x");
+	}
+
 	
 
 

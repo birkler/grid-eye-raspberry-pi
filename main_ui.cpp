@@ -12,6 +12,10 @@ cv::Vec4b getColorSubpix(const cv::Mat& img,cv::Point2f val)
     return patch.at<cv::Vec4b>(0,0);
 }
 
+int clamp(int val, int minval, int maxval) {
+    return std::min(maxval,std::max(minval,val));
+
+}
 static void colorize(float minval,float maxval, const cv::Mat& in_, const cv::Mat& palette_,cv::Mat& res) {
     res.create(in_.size(),CV_8UC4);
 
@@ -21,13 +25,34 @@ static void colorize(float minval,float maxval, const cv::Mat& in_, const cv::Ma
     for (int c=0;c<res.cols;c++) {
         float val = in_.at<float>(r,c);
         val = (val - minval) * palette_scale;
-        cv::Vec4f rgba = getColorSubpix(palette_,cv::Point2f(val,0.0));
+
+        int val_0 = floor(val);
+        int val_1 = floor(val+1.0);
+        float w = val-val_0; 
+
+        val_0 = clamp(val_0,0,palette_.cols);
+        val_1 = clamp(val_1,0,palette_.cols);
+
+        cv::Vec4f rgba0 = palette_.at<cv::Vec4f>(val_0);
+        cv::Vec4f rgba1 = palette_.at<cv::Vec4f>(val_1);
+
+
+        cv::Vec4f rgba = rgba0*(1.0 - w) + rgba1*w;
         res.at<cv::Vec4b>(r,c) = rgba*255.0;
     }
     }
 }
 
 int main(int argc, char* argv[]) {
+    bool haveRGBCamera = false;
+    bool haveGridEye = false;
+    
+    cv::VideoCapture cap(1); // open the default camera
+    if(cap.isOpened())  {
+        haveRGBCamera = true;
+    } // check if we succeeded
+
+
     std::string windowName = "Thermal";
     cv::namedWindow(windowName,cv::WINDOW_NORMAL); // not required
 
@@ -56,10 +81,15 @@ int main(int argc, char* argv[]) {
     cv::waitKey(-1);
 
     Adafruit_AMG88xx grideye;
-    grideye.init();
+    try {
+        grideye.init();
+        haveGridEye = true;
+    } catch (...) {
 
-    float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
+    } 
+
     cv::Mat gridEyePixels(8,8,CV_32F);
+    gridEyePixels *= 0.0;
     cv::Mat colorized;
 
     float minval = 15.0;
@@ -68,9 +98,31 @@ int main(int argc, char* argv[]) {
 
     cv::Mat colorized_resized;
 
-    do {
-        grideye.readPixels(&gridEyePixels.at<float>(0,0),gridEyePixels.size().area());
+    cv::Mat cameraFrame;
+    cv::Mat cameraFrameGray;
 
+    cv::Mat cameraFrameBlurred;
+
+    do {
+        if (haveRGBCamera) {
+            bool newFrame = cap.read(cameraFrame);
+
+            cv::imshow("rgb",cameraFrame);
+
+            cv::cvtColor(cameraFrame,cameraFrameGray,CV_BGR2GRAY);
+
+            cv::GaussianBlur(cameraFrameGray,cameraFrameBlurred,cv::Size(0,0),4.0,4.0);
+
+            cv::Mat diff;
+            cv::addWeighted(cameraFrameGray,2.0,cameraFrameBlurred,-2.0,+0.5 * 255.0,diff);
+
+            cv::imshow("rgb-diff",diff);
+
+        }
+
+        if (haveGridEye) {
+            grideye.readPixels(&gridEyePixels.at<float>(0,0),gridEyePixels.size().area());
+        }
 
         colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
 
@@ -83,5 +135,7 @@ int main(int argc, char* argv[]) {
 
         if (ch >= 0) break;
     } while((true));
+
+    cap.release();
 }
 
