@@ -46,8 +46,12 @@ static void colorize(float minval,float maxval, const cv::Mat& in_, const cv::Ma
 int main(int argc, char* argv[]) {
     bool haveRGBCamera = false;
     bool haveGridEye = false;
+    int cameraIndex = 0;
+    if (argc > 0) {
+        sscanf(argv[1],"%d",&cameraIndex);
+    }
     
-    cv::VideoCapture cap(0); // open the default camera
+    cv::VideoCapture cap(cameraIndex); // open the default camera
     if(cap.isOpened())  {
         haveRGBCamera = true;
     } // check if we succeeded
@@ -58,8 +62,8 @@ int main(int argc, char* argv[]) {
 
  
     cv::Vec4f palette_jet_colors[] = {
-        cv::Vec4f(0.6,0.0,0.0,1.0),
-        cv::Vec4f(1.0,0.0,0.0,1.0),
+        cv::Vec4f(0.7,0.0,0.1,1.0),
+        cv::Vec4f(1.0,0.2,0.2,1.0),
         cv::Vec4f(0.7,0.7,0.0,1.0),
         cv::Vec4f(0.0,0.9,0.0,1.0),
         cv::Vec4f(0.0,0.7,0.7,1.0),
@@ -78,7 +82,6 @@ int main(int argc, char* argv[]) {
 
     cv::imshow(windowName,palette_show);
 
-    cv::waitKey(-1);
 
     Adafruit_AMG88xx grideye;
     try {
@@ -104,11 +107,37 @@ int main(int argc, char* argv[]) {
     cv::Mat cameraFrameBlurred;
     cv::Size mergedViewSize = gridEyePixels.size()*32;
 
+    cv::Mat cameraFeedoverlay;
 
+    cameraFeedoverlay.create(mergedViewSize,CV_8UC4);
 	
+    cv::Matx32f RGBinv;
+
+    float rgbFocal = 600.0;
+    float rgbPPX = 320.0;
+    float rgbPPY = 240.0;
+    
+    RGBinv(0,0) = 1.0 / rgbFocal;
+    RGBinv(1,1) = 1.0 / rgbFocal;
+    RGBinv(0,1) = 0.0;
+    RGBinv(1,0) = 0.0;
+    RGBinv(0,2) = - rgbPPX * RGBinv(0,0);
+    RGBinv(1,2) = - rgbPPY * RGBinv(0,0);
+
+    float gridEyeFOV = 60.0;
+
+    cv::Matx23f M = cv::Matx23f::zeros();
+
 
 
     do {
+        if (haveGridEye) {
+            grideye.readPixels(&gridEyePixels.at<float>(0,0),gridEyePixels.size().area());
+        }
+        colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
+
+        cv::resize(colorized,colorized_resized,mergedViewSize,0.0,0.0,cv::INTER_CUBIC);
+
         if (haveRGBCamera) {
             bool newFrame = cap.read(cameraFrame);
 
@@ -123,15 +152,54 @@ int main(int argc, char* argv[]) {
 
             cv::imshow("rgb-diff",diff);
 
+            if (M(0,0) < 0.001) {
+
+                float rgbFocal = 300.0 * 640.0 / float(cameraFrameGray.cols);
+                float gridEyeFOV = 60.0;
+                float gridEyeFocal = float(colorized_resized.cols) * 0.5 / tan(gridEyeFOV * 0.5 * CV_PI / 180.0);
+
+                cv::Point2f from[3];
+                cv::Point2f to[3];
+                //Principle point to principle point
+
+                from[0].x = cameraFrameGray.cols / 2;
+                from[0].y = cameraFrameGray.rows / 2;
+                to[0].x = colorized_resized.cols / 2;
+                to[0].y = colorized_resized.rows / 2;
+
+                from[1] = from[0];
+                from[2] = from[0];
+                to[1] = to[0];
+                to[2] = to[0];
+
+                
+                from[1].x += 1.0 * rgbFocal;
+                to[1].x += 1.0 * gridEyeFocal;
+
+                from[2].y += 1.0 * rgbFocal;
+                to[2].y += 1.0 * gridEyeFocal;
+
+                M = cv::getAffineTransform(from,to);
+
+            }
+
+            cv::Mat diffWarped;
+
+            int warpFlags = cv::INTER_LINEAR| cv::WARP_FILL_OUTLIERS;
+
+            cv::warpAffine(diff,diffWarped,M,colorized_resized.size(),warpFlags,cv::BORDER_CONSTANT,cv::Scalar::all(128));
+
+            cv::cvtColor(diffWarped,diffWarped,CV_GRAY2RGBA);
+
+            cv::Mat combined;
+
+            cv::addWeighted(colorized_resized,1.0,diffWarped,0.5,-0.5 * 255.0,combined);
+
+
+            cv::imshow("rgb+grideye",combined);
+
         }
 
-        if (haveGridEye) {
-            grideye.readPixels(&gridEyePixels.at<float>(0,0),gridEyePixels.size().area());
-        }
-
-        colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
-
-        cv::resize(colorized,colorized_resized,mergedViewSize,0.0,0.0,cv::INTER_CUBIC);
 
 
         cv::imshow(windowName,colorized_resized);
