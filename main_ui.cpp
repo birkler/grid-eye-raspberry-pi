@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
     bool haveRGBCamera = false;
     bool haveGridEye = false;
     
-    cv::VideoCapture cap(1); // open the default camera
+    cv::VideoCapture cap(0); // open the default camera
     if(cap.isOpened())  {
         haveRGBCamera = true;
     } // check if we succeeded
@@ -102,6 +102,11 @@ int main(int argc, char* argv[]) {
     cv::Mat cameraFrameGray;
 
     cv::Mat cameraFrameBlurred;
+    cv::Size mergedViewSize = gridEyePixels.size()*32;
+
+
+	
+
 
     do {
         if (haveRGBCamera) {
@@ -126,7 +131,7 @@ int main(int argc, char* argv[]) {
 
         colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
 
-        cv::resize(colorized,colorized_resized,gridEyePixels.size()*16,0.0,0.0,cv::INTER_CUBIC);
+        cv::resize(colorized,colorized_resized,mergedViewSize,0.0,0.0,cv::INTER_CUBIC);
 
 
         cv::imshow(windowName,colorized_resized);
