@@ -54,6 +54,9 @@ int main(int argc, char* argv[]) {
     cv::VideoCapture cap(cameraIndex); // open the default camera
     if(cap.isOpened())  {
         haveRGBCamera = true;
+
+        cap.set(CV_CAP_PROP_FRAME_WIDTH,640.0);
+        cap.set(CV_CAP_PROP_FRAME_HEIGHT,480.0);
     } // check if we succeeded
 
 
@@ -78,6 +81,11 @@ int main(int argc, char* argv[]) {
     cv::Mat palette_show;
 
     cv::resize(palette_jet,palette_show,cv::Size(200,200));
+
+
+    std::string windowName2 = "camera+grideye";
+
+   cv::namedWindow(windowName2,cv::WINDOW_NORMAL); // not required
 
 
     cv::imshow(windowName,palette_show);
@@ -106,29 +114,18 @@ int main(int argc, char* argv[]) {
 
     cv::Mat cameraFrameBlurred;
     cv::Size mergedViewSize = gridEyePixels.size()*32;
-
-    cv::Mat cameraFeedoverlay;
-
-    cameraFeedoverlay.create(mergedViewSize,CV_8UC4);
 	
-    cv::Matx32f RGBinv;
-
-    float rgbFocal = 600.0;
-    float rgbPPX = 320.0;
-    float rgbPPY = 240.0;
-    
-    RGBinv(0,0) = 1.0 / rgbFocal;
-    RGBinv(1,1) = 1.0 / rgbFocal;
-    RGBinv(0,1) = 0.0;
-    RGBinv(1,0) = 0.0;
-    RGBinv(0,2) = - rgbPPX * RGBinv(0,0);
-    RGBinv(1,2) = - rgbPPY * RGBinv(0,0);
-
     float gridEyeFOV = 60.0;
+    float rgbFocalVGA = 600.0;
 
     cv::Matx23f M = cv::Matx23f::zeros();
 
+    cv::Mat diff;
+    cv::Mat diffWarped;
+    cv::Mat combined;
 
+    cv::Point2f from[3];
+    cv::Point2f to[3];
 
     do {
         if (haveGridEye) {
@@ -144,22 +141,18 @@ int main(int argc, char* argv[]) {
             cv::imshow("rgb",cameraFrame);
 
             cv::cvtColor(cameraFrame,cameraFrameGray,CV_BGR2GRAY);
-
+ 
             cv::GaussianBlur(cameraFrameGray,cameraFrameBlurred,cv::Size(0,0),4.0,4.0);
 
-            cv::Mat diff;
             cv::addWeighted(cameraFrameGray,2.0,cameraFrameBlurred,-2.0,+0.5 * 255.0,diff);
 
-            cv::imshow("rgb-diff",diff);
+            //cv::imshow("rgb-diff",diff);
 
             if (M(0,0) < 0.001) {
 
-                float rgbFocal = 300.0 * 640.0 / float(cameraFrameGray.cols);
-                float gridEyeFOV = 60.0;
+                float rgbFocal = rgbFocalVGA * 640.0 / float(cameraFrameGray.cols);
                 float gridEyeFocal = float(colorized_resized.cols) * 0.5 / tan(gridEyeFOV * 0.5 * CV_PI / 180.0);
 
-                cv::Point2f from[3];
-                cv::Point2f to[3];
                 //Principle point to principle point
 
                 from[0].x = cameraFrameGray.cols / 2;
@@ -183,7 +176,6 @@ int main(int argc, char* argv[]) {
 
             }
 
-            cv::Mat diffWarped;
 
             int warpFlags = cv::INTER_LINEAR| cv::WARP_FILL_OUTLIERS;
 
@@ -191,22 +183,35 @@ int main(int argc, char* argv[]) {
 
             cv::cvtColor(diffWarped,diffWarped,CV_GRAY2RGBA);
 
-            cv::Mat combined;
 
             cv::addWeighted(colorized_resized,1.0,diffWarped,0.5,-0.5 * 255.0,combined);
 
 
-            cv::imshow("rgb+grideye",combined);
+            int ctr_x = gridEyePixels.cols/2;
+            int ctr_y = gridEyePixels.rows/2;
+            float centerVal = 
+                gridEyePixels.at<float>(ctr_y,ctr_x) + gridEyePixels.at<float>(ctr_y+1,ctr_x) + 
+                gridEyePixels.at<float>(ctr_y+1,ctr_x+1) + gridEyePixels.at<float>(ctr_y,ctr_x+1);
+
+            centerVal *= 1.0/4.0;
+            std::string val_str = cv::format("% 4.1f C",centerVal);
+
+            cv::circle(combined,to[0],5,cv::Scalar::all(255),1);
+            cv::putText(combined,val_str,to[0],cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar::all(0.0),4);
+            cv::putText(combined,val_str,to[0],cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar::all(255),2);
+
+
+            cv::imshow(windowName2,combined);
 
         }
 
 
 
-        cv::imshow(windowName,colorized_resized);
+        //cv::imshow(windowName,colorized_resized);
 
         int ch=cv::waitKey(5);
 
-        if (ch >= 0) break;
+        if (ch == 27) break;
     } while((true));
 
     cap.release();
