@@ -129,7 +129,11 @@ int main(int argc, char* argv[]) {
 
     do {
         if (haveGridEye) {
-            grideye.readPixels(&gridEyePixels.at<float>(0,0),gridEyePixels.size().area());
+            int npixels = gridEyePixels.size().area();
+            //grideye.readPixels(&gridEyePixels.at<float>(0,0),npixels);
+            float thermistorValue = grideye.readThermistor();
+
+            printf("%.1f\n",thermistorValue);
         }
         colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
 

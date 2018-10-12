@@ -549,7 +549,7 @@ void Adafruit_AMG88xx::readPixels(float *buf, uint8_t size)
 	uint16_t recast;
 	float converted;
 	uint8_t bytesToRead = min((uint8_t)(size << 1), (uint8_t)(AMG88xx_PIXEL_ARRAY_SIZE << 1));
-	uint8_t rawArray[bytesToRead];
+	uint8_t rawArray[AMG88xx_PIXEL_ARRAY_SIZE*2];
 	this->read(AMG88xx_PIXEL_OFFSET, rawArray, bytesToRead);
 	
 	for(int i=0; i<size; i++){
@@ -627,9 +627,10 @@ void Adafruit_AMG88xx::read(uint8_t reg, uint8_t *buf, uint8_t num)
 float Adafruit_AMG88xx::signedMag12ToFloat(uint16_t val)
 {
 	//take first 11 bits as absolute val
-	uint16_t absVal = (val & 0x7FF);
+	int16_t absVal = (val & 0x7FF);
+	if ((val & 0x800) != 0) absVal |= 0xF000;
 	
-	return (val & 0x8000) ? 0 - (float)absVal : (float)absVal ;
+	return (float)absVal;
 }
 
 

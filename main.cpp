@@ -6,7 +6,7 @@ int main(int argc, char* argv[]) {
     grideye.init();
 
     float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
-    grideye.readPixels(pixels,(uint8_t)sizeof(pixels));
+    grideye.readPixels(pixels,(uint8_t)sizeof(pixels)/sizeof(pixels[0]));
 
     for (int r=0;r<8;r++) {
         for (int c=0;c<8;c++) {
