@@ -378,6 +378,7 @@ bool Adafruit_AMG88xx::init(uint8_t addr)
 	if (filehnd < 0) {
 		filehnd = open(dev_filename,O_RDWR);
 		if (filehnd < 0) throw std::ios_base::failure("Cannot open /dev/i2c-x");
+		printf("%s opened!\n",dev_filename);
 	}
 
 	
@@ -594,7 +595,9 @@ void Adafruit_AMG88xx::_i2c_init()
 {
 	if (ioctl(filehnd,I2C_SLAVE,_i2caddr) < 0) {
 		throw std::ios_base::failure("Failed to acquire bus access and/or talk to slave");
-    }
+    } else {
+		printf("ioctl ok!\n");
+	}
 
 #if __ARDUINO__
 	Wire.begin();
@@ -610,7 +613,7 @@ void Adafruit_AMG88xx::read(uint8_t reg, uint8_t *buf, uint8_t num)
 	while(pos < num){
 		*bufptr = reg + pos;
 		int res = ::read(filehnd,bufptr,1);
-		if (res != 0) throw std::ios_base::failure("Failed to read byte from slave");
+		if (res != 1) throw std::ios_base::failure("Failed to read byte from slave at pos %d at address %d");
 		pos++;
 		bufptr++;
 	}

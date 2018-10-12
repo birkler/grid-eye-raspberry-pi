@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
     bool haveRGBCamera = false;
     bool haveGridEye = false;
     int cameraIndex = 0;
-    if (argc > 0) {
+    if (argc >= 2) {
         sscanf(argv[1],"%d",&cameraIndex);
     }
     
@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
             }
 
 
-            int warpFlags = cv::INTER_LINEAR| cv::WARP_FILL_OUTLIERS;
+            int warpFlags = cv::INTER_LINEAR;//| cv::WARP_FILL_OUTLIERS;
 
             cv::warpAffine(diff,diffWarped,M,colorized_resized.size(),warpFlags,cv::BORDER_CONSTANT,cv::Scalar::all(128));
 
