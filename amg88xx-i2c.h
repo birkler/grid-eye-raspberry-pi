@@ -621,15 +621,10 @@ uint8_t Adafruit_AMG88xx::read8(byte reg)
 	union i2c_smbus_data data;
 	int err;
 
-	err = i2c_smbus_access(I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE, &data);
+	err = i2c_smbus_access(I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE_DATA, &data);
 	if (err < 0)  throw std::ios_base::failure("Failed to read byte from slave at pos %d at address %d");
 
-	return 0x0FF & data.byte;
-
-	uint8_t ret;
-	this->read(reg, &ret, 1);
-	
-	return ret;
+	return 0xFF & data.byte;
 }
 
 void Adafruit_AMG88xx::_i2c_init()
@@ -647,12 +642,9 @@ void Adafruit_AMG88xx::_i2c_init()
 
 void Adafruit_AMG88xx::read(uint8_t reg, uint8_t *buf, uint8_t num)
 {
-	uint8_t value;
 	uint8_t pos = 0;
-	uint8_t* bufptr = buf;
-	//on arduino we need to read in AMG_I2C_CHUNKSIZE byte chunks
 	while(pos < num){
-		*bufptr++ = read8(reg + pos);
+		*buf++ = read8(reg + pos);
 		pos++;
 	}
 }
