@@ -95,6 +95,7 @@ int main(int argc, char* argv[]) {
     try {
         grideye.init();
         haveGridEye = true;
+        grideye.setMovingAverageMode(true);
     } catch (...) {
 
     } 
@@ -140,7 +141,7 @@ int main(int argc, char* argv[]) {
         }
         colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
 
-        cv::resize(colorized,colorized_resized,mergedViewSize,0.0,0.0,cv::INTER_LINEAR);
+        cv::resize(colorized,colorized_resized,mergedViewSize,0.0,0.0,cv::INTER_CUBIC);
 
         if (haveRGBCamera) {
             bool newFrame = cap.read(cameraFrame);
@@ -193,7 +194,7 @@ int main(int argc, char* argv[]) {
             cv::cvtColor(diffWarped,diffWarped,CV_GRAY2RGBA);
 
 
-            cv::addWeighted(colorized_resized,1.0,diffWarped,0.5,-0.5 * 255.0,combined);
+            cv::addWeighted(colorized_resized,1.0,diffWarped,0.0,-0.0 * 255.0,combined);
 
 
 
