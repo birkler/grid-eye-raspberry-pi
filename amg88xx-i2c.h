@@ -44,6 +44,7 @@
 		AMG88xx_TTHL = 0x0E,
 		AMG88xx_TTHH = 0x0F,
 		AMG88xx_INT_OFFSET = 0x010,
+		AMG88xx_RESERVED_1F = 0x01F,
 		AMG88xx_PIXEL_OFFSET = 0x80
     };
 	
@@ -360,7 +361,7 @@ Adafruit_AMG88xx::Adafruit_AMG88xx() : filehnd(-1), dev_filename("/dev/i2c-1") {
 }
 Adafruit_AMG88xx::~Adafruit_AMG88xx() {
 	if (filehnd >=0) close(filehnd);
-	filehnd = 0;
+	filehnd = -1;
 }
 		
 
@@ -415,8 +416,16 @@ bool Adafruit_AMG88xx::init(uint8_t addr)
 void Adafruit_AMG88xx::setMovingAverageMode(bool mode)
 {
 	_ave.MAMOD = mode;
+	//This sequence is according to the spec. not sure what it does
+	write8(AMG88xx_RESERVED_1F,0x50);
+	write8(AMG88xx_RESERVED_1F,0x45);
+	write8(AMG88xx_RESERVED_1F,0x57);
 	write8(AMG88xx_AVE, _ave.get());
+	write8(AMG88xx_RESERVED_1F,0x00);
 }
+
+
+
 
 /**************************************************************************/
 /*! 
