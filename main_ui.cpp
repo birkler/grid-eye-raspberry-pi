@@ -30,8 +30,8 @@ static void colorize(float minval,float maxval, const cv::Mat& in_, const cv::Ma
         int val_1 = floor(val+1.0);
         float w = val-val_0; 
 
-        val_0 = clamp(val_0,0,palette_.cols);
-        val_1 = clamp(val_1,0,palette_.cols);
+        val_0 = clamp(val_0,0,palette_.cols-1);
+        val_1 = clamp(val_1,0,palette_.cols-1);
 
         cv::Vec4f rgba0 = palette_.at<cv::Vec4f>(val_0);
         cv::Vec4f rgba1 = palette_.at<cv::Vec4f>(val_1);
@@ -69,10 +69,10 @@ int main(int argc, char* argv[]) {
         cv::Vec4f(1.0,0.2,0.2,1.0),
         cv::Vec4f(0.7,0.7,0.0,1.0),
         cv::Vec4f(0.0,0.9,0.0,1.0),
-        cv::Vec4f(0.0,0.7,0.7,1.0),
+        cv::Vec4f(0.0,0.8,0.8,1.0),
         cv::Vec4f(0.0,0.0,0.9,1.0),
         //cv::Vec4f(.8,0.3,0.3,1.0),
-        cv::Vec4f(.7,0.7,0.7,1.0)
+        cv::Vec4f(.9,0.9,0.9,1.0)
     };
 
     cv::Mat palette_jet(1,sizeof(palette_jet_colors) / sizeof(palette_jet_colors[0]),CV_32FC4,palette_jet_colors);
@@ -95,6 +95,7 @@ int main(int argc, char* argv[]) {
     try {
         grideye.init();
         haveGridEye = true;
+        grideye.setMovingAverageMode(true);
     } catch (...) {
 
     } 
@@ -103,9 +104,9 @@ int main(int argc, char* argv[]) {
     gridEyePixels *= 0.0;
     cv::Mat colorized;
 
-    float minval = 15.0;
+    float minval = 18.0;
 
-    float maxval = 40.0;
+    float maxval = 32.0;
 
     cv::Mat colorized_resized;
 
@@ -118,6 +119,8 @@ int main(int argc, char* argv[]) {
     float gridEyeFOV = 60.0;
     float rgbFocalVGA = 600.0;
 
+	cv::Size viewFinderSize(320,240);
+
     cv::Matx23f M = cv::Matx23f::zeros();
 
     cv::Mat diff;
@@ -127,13 +130,14 @@ int main(int argc, char* argv[]) {
     cv::Point2f from[3];
     cv::Point2f to[3];
 
+	float thermistorValue = 0.0;
+
     do {
         if (haveGridEye) {
             int npixels = gridEyePixels.size().area();
-            //grideye.readPixels(&gridEyePixels.at<float>(0,0),npixels);
-            float thermistorValue = grideye.readThermistor();
+            grideye.readPixels(&gridEyePixels.at<float>(0,0),npixels);
+            thermistorValue = grideye.readThermistor();
 
-            printf("%.1f\n",thermistorValue);
         }
         colorize(minval,maxval,gridEyePixels,palette_jet,colorized);
 
@@ -141,6 +145,8 @@ int main(int argc, char* argv[]) {
 
         if (haveRGBCamera) {
             bool newFrame = cap.read(cameraFrame);
+            
+            cv::resize(cameraFrame,cameraFrame,viewFinderSize,0.0,0.0,cv::INTER_NEAREST);
 
             cv::imshow("rgb",cameraFrame);
 
@@ -154,7 +160,7 @@ int main(int argc, char* argv[]) {
 
             if (M(0,0) < 0.001) {
 
-                float rgbFocal = rgbFocalVGA * 640.0 / float(cameraFrameGray.cols);
+                float rgbFocal = rgbFocalVGA * float(cameraFrameGray.cols) / 640.0;
                 float gridEyeFocal = float(colorized_resized.cols) * 0.5 / tan(gridEyeFOV * 0.5 * CV_PI / 180.0);
 
                 //Principle point to principle point
@@ -188,7 +194,8 @@ int main(int argc, char* argv[]) {
             cv::cvtColor(diffWarped,diffWarped,CV_GRAY2RGBA);
 
 
-            cv::addWeighted(colorized_resized,1.0,diffWarped,0.5,-0.5 * 255.0,combined);
+            cv::addWeighted(colorized_resized,1.0,diffWarped,0.0,-0.0 * 255.0,combined);
+
 
 
             int ctr_x = gridEyePixels.cols/2;
@@ -198,11 +205,18 @@ int main(int argc, char* argv[]) {
                 gridEyePixels.at<float>(ctr_y+1,ctr_x+1) + gridEyePixels.at<float>(ctr_y,ctr_x+1);
 
             centerVal *= 1.0/4.0;
-            std::string val_str = cv::format("% 4.1f C",centerVal);
+            std::string val_str = cv::format("% 4.1f°C",centerVal);
 
             cv::circle(combined,to[0],5,cv::Scalar::all(255),1);
             cv::putText(combined,val_str,to[0],cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar::all(0.0),4);
             cv::putText(combined,val_str,to[0],cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar::all(255),2);
+
+
+            std::string thermistor_val_str = cv::format("Thermistor:%.1f°C",thermistorValue);
+
+			cv::Point2f pos(0,combined.rows);
+            cv::putText(combined,thermistor_val_str,pos,cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar::all(0.0),4);
+            cv::putText(combined,thermistor_val_str,pos,cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar::all(255),2);
 
 
             cv::imshow(windowName2,combined);
@@ -213,7 +227,7 @@ int main(int argc, char* argv[]) {
 
         //cv::imshow(windowName,colorized_resized);
 
-        int ch=cv::waitKey(5);
+        int ch=cv::waitKey(1);
 
         if (ch == 27) break;
     } while((true));

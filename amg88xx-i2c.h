@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <linux/i2c-dev.h>
+#include <linux/i2c.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -127,8 +128,12 @@ class Adafruit_AMG88xx {
 	private:
 		uint8_t _i2caddr;
 		
+		int32_t i2c_smbus_access(
+			char read_write, 
+			__u8 command,
+		       int size, union i2c_smbus_data *data);
+
 		void      write8(byte reg, byte value);
-		void      write16(byte reg, uint16_t value);
         uint8_t   read8(byte reg);
 		
 		void read(uint8_t reg, uint8_t *buf, uint8_t num);
@@ -571,6 +576,26 @@ void Adafruit_AMG88xx::readPixels(float *buf, uint8_t size)
 	}
 }
 
+
+
+int32_t Adafruit_AMG88xx::i2c_smbus_access(char read_write, __u8 command,
+		       int size, union i2c_smbus_data *data)
+{
+	struct i2c_smbus_ioctl_data args;
+	int32_t err;
+
+	args.read_write = read_write;
+	args.command = command;
+	args.size = size;
+	args.data = data;
+
+	err = ioctl(filehnd, I2C_SMBUS, &args);
+	if (err == -1)
+		err = -errno;
+	return err;
+}
+
+
 /**************************************************************************/
 /*! 
     @brief  write one byte of data to the specified register
@@ -580,6 +605,14 @@ void Adafruit_AMG88xx::readPixels(float *buf, uint8_t size)
 /**************************************************************************/
 void Adafruit_AMG88xx::write8(byte reg, byte value)
 {
+	union i2c_smbus_data data;
+	data.byte = value;
+	int err = i2c_smbus_access(I2C_SMBUS_WRITE, reg,
+				I2C_SMBUS_BYTE_DATA, &data);
+
+	if (err < 0)  throw std::ios_base::failure("Failed to read byte from slave at pos %d at address %d");
+
+
 	uint8_t buf [2]= {reg,value};
 	int res = ::write(filehnd,buf,2);
 	if (res != 2) throw std::ios_base::failure("Failed to write byte to slave");
@@ -594,10 +627,13 @@ void Adafruit_AMG88xx::write8(byte reg, byte value)
 /**************************************************************************/
 uint8_t Adafruit_AMG88xx::read8(byte reg)
 {
-	uint8_t ret;
-	this->read(reg, &ret, 1);
-	
-	return ret;
+	union i2c_smbus_data data;
+	int err;
+
+	err = i2c_smbus_access(I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE_DATA, &data);
+	if (err < 0)  throw std::ios_base::failure("Failed to read byte from slave at pos %d at address %d");
+
+	return 0xFF & data.byte;
 }
 
 void Adafruit_AMG88xx::_i2c_init()
@@ -615,16 +651,10 @@ void Adafruit_AMG88xx::_i2c_init()
 
 void Adafruit_AMG88xx::read(uint8_t reg, uint8_t *buf, uint8_t num)
 {
-	uint8_t value;
 	uint8_t pos = 0;
-	uint8_t* bufptr = buf;
-	//on arduino we need to read in AMG_I2C_CHUNKSIZE byte chunks
 	while(pos < num){
-		*bufptr = reg + pos;
-		int res = ::read(filehnd,bufptr,1);
-		if (res != 1) throw std::ios_base::failure("Failed to read byte from slave at pos %d at address %d");
+		*buf++ = read8(reg + pos);
 		pos++;
-		bufptr++;
 	}
 }
 
